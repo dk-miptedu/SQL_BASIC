@@ -29,11 +29,13 @@ FROM
 -- Задание 3
 -- Вывести список проектов и количество сотрудников, задействованных на этих проектах.
 SELECT 
-	p.name, 
+    p.name, 
     p.employees_id, 
     p.assigned_id,
-	coalesce(array_length(employees_id, 1), 0) emp_count 
+    (coalesce(array_length(p.employees_id, 1), 0)+ COUNT(DISTINCT p.assigned_id)) emp_count 
 FROM hr.projects p
+GROUP BY 
+    p.name, p.employees_id, p.assigned_id
 ;
     
 

@@ -21,19 +21,20 @@
 Вывести список сотрудников старше 65 лет.
 
 ```sql
-SELECT 
-    last_name || ' ' || first_name || ' ' || COALESCE(middle_name, '') fio,
-    dob, 
-    EXTRACT(YEAR FROM age(dob)) years
-FROM 
-    hr.person
+SELECT * 
+FROM (
+    SELECT 
+          CONCAT_WS(' ', last_name, first_name, middle_name) fio
+        , dob
+        , EXTRACT(YEAR FROM age(current_date,dob)) :: int years
+    FROM 
+        hr.person
+) age
 WHERE 
-    dob <= CURRENT_DATE - INTERVAL '65 years'
+    years > 65
 ;
 ```
-С помощью EXTRACT вычисляем возраст сотрудника и фильтруем с помощью WHERE для выбора сотрудников, которым уже исполнилось 65 лет. 
-
-> middle_name может быть NULL, поэтому использовал функция COALESCE.
+С помощью EXTRACT вычисляем возраст сотрудника и фильтруем с помощью WHERE для выбора сотрудников, которые старше 65 лет.
 
    
    
@@ -42,22 +43,25 @@ WHERE
 
 ```sql
 SELECT 
-    COUNT(*) - (SELECT COUNT(DISTINCT pos_id) FROM hr.employee) AS count
+    COUNT(*) - (
+        SELECT COUNT(DISTINCT pos_id) FROM hr.employee
+        ) count
 FROM 
     hr."position"
-;
+; 
 ```
 С помощью COUNT(*) рассчитываем общее количество должностей в таблице hr."position". В подзапросе (SELECT COUNT(DISTINCT pos_id) FROM hr.employee) подсчитывается количество занятых должностей. Разница между этими двумя числами дает количество вакантных должностей. 
-   
+
+
 ## Задание 3
 Вывести список проектов и количество сотрудников, задействованных на этих проектах.
 
 ```sql
 SELECT 
-    p.name, 
-    p.employees_id, 
-    p.assigned_id,
-    (coalesce(array_length(p.employees_id, 1), 0)+ COUNT(DISTINCT p.assigned_id)) emp_count 
+      p.name
+    , p.employees_id
+    , p.assigned_id
+    , COALESCE(ARRAY_LENGTH(ARRAY_APPEND(employees_id, assigned_id), 1), 0) emp_count 
 FROM hr.projects p
 GROUP BY 
     p.name, p.employees_id, p.assigned_id
@@ -69,43 +73,33 @@ GROUP BY
 Получить список сотрудников у которых было повышение заработной платы на 25%
 
 ```sql
-SELECT 
-    e.emp_id,
-    es2.salary salary,
-    es1.salary previous_salary,
-    (es2.salary/es1.salary - 1)*100 change_percent
-FROM 
-    hr.employee e
-JOIN 
-    hr.employee_salary es1 ON e.emp_id = es1.emp_id
-JOIN 
-    hr.employee_salary es2 ON e.emp_id = es2.emp_id
-WHERE 
-    es2.effective_from > es1.effective_from
-AND 
-    es2.salary = es1.salary * 1.25
-ORDER BY 
-    e.emp_id
+SELECT emp_id, salary, previous_salary, (salary/previous_salary-1)*100 change_percent 
+FROM (
+    SELECT 
+         emp_id
+        ,salary 
+        ,LAG(salary,-1) OVER(PARTITION BY emp_id ORDER BY effective_from DESC) previous_salary
+    FROM hr.employee_salary) es
+WHERE
+(salary/previous_salary-1)*100 = 25
 ;
 ```
-
-Происходит соединение таблиц hr.employee и hr.employee_salary дважды: один раз для получения предыдущей зарплаты (es1) и один раз для текущей зарплаты (es2).
-Условие в WHERE фильтрует те случаи, где effective_from второй зарплаты больше первой на 25%.
+Условие в WHERE фильтрует те случаи, когда последовательное увеличение заработной платы сотрудника равно 25%.
    
 ## Задание 5
 Вывести среднее значение суммы договора на каждый год, округленное до сотых.
 
 ```sql
 SELECT 
-    EXTRACT(YEAR FROM created_at) "year", 
-    ROUND(AVG(amount), 2) avg_amount
+      EXTRACT(YEAR FROM created_at) "year"
+    , ROUND(AVG(amount), 2) avg_amount
 FROM 
     hr.projects
 GROUP BY 
     EXTRACT(YEAR FROM created_at)
 ORDER BY 
     year
-;   
+; 
 ```
 Чтобы получить год из даты создания проекта используется функция EXTRACT(YEAR FROM created_at).
 Вычисляем среднее значение суммы договоров с помощью AVG(amount) и округляем значение до сотых.
@@ -117,13 +111,13 @@ ORDER BY
 ```sql
 WITH RankedSalaries AS (
     SELECT 
-        e.emp_id,
-        es.salary,
-        p.first_name,
-        p.middle_name,
-        p.last_name,
-        DENSE_RANK() OVER (ORDER BY es.salary ASC) rank_lowest,
-        DENSE_RANK() OVER (ORDER BY es.salary DESC) rank_highest
+          e.emp_id
+        , es.salary
+        , p.first_name
+        , p.middle_name
+        , p.last_name
+        , DENSE_RANK() OVER (ORDER BY es.salary ASC) rank_lowest
+        , DENSE_RANK() OVER (ORDER BY es.salary DESC) rank_highest
     FROM 
         hr.employee_salary es
     JOIN 
@@ -132,21 +126,22 @@ WITH RankedSalaries AS (
         hr.person p ON e.person_id = p.person_id
 )
 SELECT 
-    last_name || ' ' || first_name || ' ' || COALESCE(middle_name, '') fio,
-    salary
+      CONCAT_WS(' ', last_name, first_name, middle_name) fio
+    , salary
 FROM 
     RankedSalaries
 WHERE 
     rank_lowest = 1
 UNION
 SELECT 
-    last_name || ' ' || first_name || ' ' || COALESCE(middle_name, '') fio, 
-    salary
+      CONCAT_WS(' ', last_name, first_name, middle_name) fio
+    , salary
 FROM 
     RankedSalaries
 WHERE 
     rank_highest = 1
 ;
+
 ```
 
 RankedSalaries временный набор данных с зарплатами и информацией о сотрудниках, включая ранги для самых низких и самых высоких зарплат.
@@ -158,31 +153,25 @@ DENSE_RANK() используется для ранжирования зарпл
 Вывести текущий оклад сотрудников и в формате строки вывести зарплатные грейды, в которые попадает текущий оклад.
 
 ```sql
-WITH LatestSalaries AS (
+WITH  emp_salary_last as (
     SELECT 
-        es.emp_id,
-        es.salary,
-        ROW_NUMBER() OVER (PARTITION BY es.emp_id ORDER BY es.effective_from DESC) AS rn
-    FROM 
-        hr.employee_salary es
-)
+        DISTINCT first_value("salary") OVER (PARTITION BY emp_id ORDER BY effective_from DESC) salary
+        ,emp_id
+    FROM hr.employee_salary
+    )
 SELECT 
     e.emp_id,
     ls.salary,
     STRING_AGG(gs.grade::text, ', ' ORDER BY gs.grade) grades_as_string
 FROM 
     hr.employee e
-JOIN 
-    LatestSalaries ls ON e.emp_id = ls.emp_id AND ls.rn = 1
-LEFT JOIN 
-    hr.grade_salary gs ON ls.salary BETWEEN gs.min_salary AND gs.max_salary
--- WHERE e.emp_id in (1665, 1547, 1176, 1202, 802) --Test by screenshot
-GROUP BY 
-    e.emp_id, ls.salary
+join emp_salary_last ls on e.emp_id = ls.emp_id
+LEFT JOIN hr.grade_salary gs ON ls.salary BETWEEN gs.min_salary AND gs.max_salary
+GROUP BY  e.emp_id, ls.salary --, esl.salary --,p.first_name, p.middle_name, p.last_name
 ;
 ```
 
-LatestSalaries - это временный набор данных, который использует ROW_NUMBER() для определения последнего (самого актуального) оклада для каждого сотрудника.
+emp_salary_last - это временный набор данных, который использует first_value для определения последнего (актуального) оклада для каждого сотрудника.
 STRING_AGG(gs.grade::text, ', ' ORDER BY gs.grade) агрегирует грейды в строку, разделяя их запятой и упорядочивая по возрастанию грейда;
      
 ## Задание 8
@@ -198,25 +187,34 @@ STRING_AGG(gs.grade::text, ', ' ORDER BY gs.grade) агрегирует грей
 
 ```sql
 CREATE VIEW hr.employee_details as --задокументировать строку для проверки SELECT
+WITH emp_projects AS (
+    SELECT emp_id, ARRAY_AGG(project_id) AS project_names
+    FROM (
+       SELECT UNNEST(ARRAY_APPEND(p.employees_id,p.assigned_id))  emp_id, p.project_id
+        FROM hr.projects p
+    ) emp
+    GROUP BY 
+        emp_id
+    ), emp_salary_last as (
+    SELECT 
+        DISTINCT first_value("salary") OVER (PARTITION BY emp_id ORDER BY effective_from DESC) salary
+        , emp_id
+    FROM hr.employee_salary
+    )
 SELECT 
-    p.last_name || ' ' || p.first_name || ' ' || COALESCE(p.middle_name, '') "фио",
-    pos.pos_title "должность",
-    s.unit_title "подразделение",
-    EXTRACT(YEAR FROM AGE(CURRENT_DATE, p.dob)) "кол-во лет",
-    EXTRACT(YEAR FROM AGE(CURRENT_DATE, e.hire_date)) * 12 + EXTRACT(MONTH FROM AGE(CURRENT_DATE, e.hire_date)) "кол-во месяцев",
-    es.salary "salary",
-    (SELECT ARRAY_AGG(pr.project_id) FROM hr.projects pr WHERE pr.employees_id @> ARRAY[e.emp_id]) "массив с проектами"
-FROM 
-    hr.person p
-JOIN 
-    hr.employee e ON p.person_id = e.person_id
-JOIN 
-    hr.position pos ON e.pos_id = pos.pos_id
-JOIN 
-    hr."structure" s ON pos.unit_id = s.unit_id
-JOIN 
-    (SELECT emp_id, salary FROM hr.employee_salary es1 WHERE es1.effective_from = (SELECT MAX(es2.effective_from) FROM hr.employee_salary es2 WHERE es2.emp_id = es1.emp_id)) es ON e.emp_id = es.emp_id
--- WHERE p.last_name in ('Суханов', 'Баранов', 'Вишневская', 'Алексеев', '')  order by p.last_name
+     CONCAT_WS(' ', p.last_name, p.first_name, p.middle_name) fio
+    ,pos.pos_title
+    ,struc.unit_title
+    ,EXTRACT(YEAR FROM age(current_date,p.dob)) :: int age_years
+    ,EXTRACT(YEAR FROM AGE(CURRENT_DATE, e.hire_date)) * 12 + EXTRACT(MONTH FROM AGE(CURRENT_DATE, e.hire_date)) AS months_in_company
+    ,esl.salary
+    ,ep.project_names
+FROM hr.employee e 
+JOIN hr.person p ON p.person_id = e.person_id
+JOIN hr."position" pos ON e.pos_id = pos.pos_id
+JOIN hr."structure" struc ON pos.unit_id = struc.unit_id
+JOIN emp_salary_last esl ON esl.emp_id = e.emp_id 
+JOIN emp_projects ep ON ep.emp_id = e.emp_id
 ;
 ```
 
@@ -224,8 +222,8 @@ JOIN
 
 `кол-во лет` - вычисляеv количество полных лет сотрудника;
 
-`кол-во месяцев` - рассчитывается как общее количество месяцев работы в компании;
+`кол-во месяцев` - рассчитывается как полное количество месяцев работы в компании;
 
-`salary` -текущий оклад определяется на основе последнего записанного значения в hr.employee_salary;
+`salary` -текущий оклад определяется на основе последнего записанного значения в hr.employee_salary(используется emp_salary_last);
 
-`массив с проектами` -Массив названий проектов(используется ARRAY_AGG(pr.name)), в которых задействован сотрудник;
+`массив с проектами` -Массив названий проектов(используется emp_projects), в которых задействован сотрудник;

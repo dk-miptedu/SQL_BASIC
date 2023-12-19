@@ -20,6 +20,8 @@
 ## Задание 1
 Вывести список сотрудников старше 65 лет.
 
+![](https://u.netology.ru/backend/uploads/markdown_images/image/218808/image.png)
+
 ```sql
 SELECT * 
 FROM (
@@ -41,6 +43,8 @@ WHERE
 ## Задание 2
 Вывести количество вакантных должностей. (Таблица с вакансиями может содержать недостоверные данные, решение должно быть без этой таблицы).
 
+![](https://u.netology.ru/backend/uploads/markdown_images/image/218809/image.png)
+
 ```sql
 SELECT 
     COUNT(*) - (
@@ -56,6 +60,8 @@ FROM
 ## Задание 3
 Вывести список проектов и количество сотрудников, задействованных на этих проектах.
 
+![](https://u.netology.ru/backend/uploads/markdown_images/image/218810/image.png)
+
 ```sql
 SELECT 
       p.name
@@ -70,7 +76,9 @@ GROUP BY
 Вычисляем количество сотрудников, задейцствованных на этих проектах как сумму - количество элементов в поле `employees_id` и `assigned_id` .
 
 ## Задание 4
-Получить список сотрудников у которых было повышение заработной платы на 25%
+Получить список сотрудников у которых было повышение заработной платы на 25%.
+
+![](https://u.netology.ru/backend/uploads/markdown_images/image/218811/image.png)
 
 ```sql
 SELECT emp_id, salary, previous_salary, (salary/previous_salary-1)*100 change_percent 
@@ -88,6 +96,8 @@ WHERE
    
 ## Задание 5
 Вывести среднее значение суммы договора на каждый год, округленное до сотых.
+
+![](https://u.netology.ru/backend/uploads/markdown_images/image/218812/image.png)
 
 ```sql
 SELECT 
@@ -107,6 +117,8 @@ ORDER BY
 
 ## Задание 6
 Одним запросом вывести ФИО сотрудников с самым низким и самым высоким окладами за все время.
+
+![](https://u.netology.ru/backend/uploads/markdown_images/image/218813/image.png)
 
 ```sql
 WITH RankedSalaries AS (
@@ -152,6 +164,8 @@ DENSE_RANK() используется для ранжирования зарпл
 ## Задание 7
 Вывести текущий оклад сотрудников и в формате строки вывести зарплатные грейды, в которые попадает текущий оклад.
 
+![](https://u.netology.ru/backend/uploads/markdown_images/image/218814/image.png)
+
 ```sql
 WITH  emp_salary_last as (
     SELECT 
@@ -184,6 +198,8 @@ STRING_AGG(gs.grade::text, ', ' ORDER BY gs.grade) агрегирует грей
 - количество месяцев, сколько сотрудник работает в компании
 - текущий оклад сотрудника
 - массив со списком проектов на которых задействован сотрудник
+
+![](https://u.netology.ru/backend/uploads/markdown_images/image/218815/image.png)
 
 ```sql
 CREATE VIEW hr.employee_details as --задокументировать строку для проверки SELECT

@@ -150,13 +150,13 @@ WITH emp_projects AS (
     FROM hr.employee_salary
     )
 SELECT 
-     CONCAT_WS(' ', p.last_name, p.first_name, p.middle_name) fio
-    ,pos.pos_title
-    ,struc.unit_title
-    ,EXTRACT(YEAR FROM age(current_date,p.dob)) :: int age_years
-    ,EXTRACT(YEAR FROM AGE(CURRENT_DATE, e.hire_date)) * 12 + EXTRACT(MONTH FROM AGE(CURRENT_DATE, e.hire_date)) AS months_in_company
-    ,esl.salary
-    ,ep.project_names
+     CONCAT_WS(' ', p.last_name, p.first_name, p.middle_name) "фио"
+    ,pos.pos_title "должность"
+    ,struc.unit_title "подразделение"
+    ,EXTRACT(YEAR FROM age(current_date,p.dob)) :: int "кол-во лет"
+    ,EXTRACT(YEAR FROM AGE(CURRENT_DATE, e.hire_date)) * 12 + EXTRACT(MONTH FROM AGE(CURRENT_DATE, e.hire_date)) AS "кол-во месяцев"
+    ,esl.salary "оклад"
+    ,ep.project_names "массив с проектами"
 FROM hr.employee e 
 JOIN hr.person p ON p.person_id = e.person_id
 JOIN hr."position" pos ON e.pos_id = pos.pos_id

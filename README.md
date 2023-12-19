@@ -202,7 +202,7 @@ STRING_AGG(gs.grade::text, ', ' ORDER BY gs.grade) агрегирует грей
 ![](https://u.netology.ru/backend/uploads/markdown_images/image/218815/image.png)
 
 ```sql
-CREATE VIEW hr.employee_details as --задокументировать строку для проверки SELECT
+CREATE OR REPLACE VIEW hr.employee_details AS
 WITH emp_projects AS (
     SELECT emp_id, ARRAY_AGG(project_id) AS project_names
     FROM (
@@ -211,20 +211,20 @@ WITH emp_projects AS (
     ) emp
     GROUP BY 
         emp_id
-    ), emp_salary_last as (
+    ), emp_salary_last AS (
     SELECT 
         DISTINCT first_value("salary") OVER (PARTITION BY emp_id ORDER BY effective_from DESC) salary
         , emp_id
     FROM hr.employee_salary
     )
 SELECT 
-     CONCAT_WS(' ', p.last_name, p.first_name, p.middle_name) fio
-    ,pos.pos_title
-    ,struc.unit_title
-    ,EXTRACT(YEAR FROM age(current_date,p.dob)) :: int age_years
-    ,EXTRACT(YEAR FROM AGE(CURRENT_DATE, e.hire_date)) * 12 + EXTRACT(MONTH FROM AGE(CURRENT_DATE, e.hire_date)) AS months_in_company
-    ,esl.salary
-    ,ep.project_names
+     CONCAT_WS(' ', p.last_name, p.first_name, p.middle_name) "фио"
+    ,pos.pos_title "должность"
+    ,struc.unit_title "подразделение"
+    ,EXTRACT(YEAR FROM age(current_date,p.dob)) :: int "кол-во лет"
+    ,EXTRACT(YEAR FROM AGE(CURRENT_DATE, e.hire_date)) * 12 + EXTRACT(MONTH FROM AGE(CURRENT_DATE, e.hire_date)) AS "кол-во месяцев"
+    ,esl.salary "оклад"
+    ,ep.project_names "массив с проектами"
 FROM hr.employee e 
 JOIN hr.person p ON p.person_id = e.person_id
 JOIN hr."position" pos ON e.pos_id = pos.pos_id
@@ -240,6 +240,6 @@ JOIN emp_projects ep ON ep.emp_id = e.emp_id
 
 `кол-во месяцев` - рассчитывается как полное количество месяцев работы в компании;
 
-`salary` -текущий оклад определяется на основе последнего записанного значения в hr.employee_salary(используется emp_salary_last);
+`оклад` -текущий оклад определяется на основе последнего записанного значения в hr.employee_salary(используется emp_salary_last);
 
 `массив с проектами` -Массив названий проектов(используется emp_projects), в которых задействован сотрудник;
